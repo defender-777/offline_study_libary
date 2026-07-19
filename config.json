@@ -1,0 +1,44 @@
+{
+    "download_location": "downloads",
+
+    "video_quality": 480,
+
+    "video_format": "mp4",
+
+    "concurrent_downloads": 4,
+
+    "retry_count": 5,
+
+    "subjects":
+    {
+        "Physics":
+        {
+            "playlist": "https://youtube.com/playlist?list=PLNWoEZAZrFzNOdMEeavC2U23fGKOgQlJz&si=nJdoMRgcJAWQPrMD"
+        },
+
+        "Biology":
+        {
+            "playlist": "https://youtube.com/playlist?list=PL2xF3HCNxGM9zIVxr9FautCqxinO-7QzJ&si=SL-pY9OTeS3XPobf"
+        },
+
+        "Mathematics":
+        {
+            "playlist": "https://youtube.com/playlist?list=PLDFtjdbvBWcYl4qyXjD83PU3IRauDbChW&si=X2Mb230L8pkWVPvH"
+        },
+
+        "Organic Chemistry":
+        {
+            "playlist": "https://youtube.com/playlist?list=PL14V8GS22mQvHTaPtv2bb7Wi8T2qLH3Rb&si=8WzU-1phqhzeI6O-"
+        },
+
+        "Physical Chemistry":
+        {
+            "playlist": "https://youtube.com/playlist?list=PLSkPdKrFDV7XeMfVKasCW6pp4YYh4lT9g&si=gO0M422Xzf9e3Rwz"
+        },
+
+        "Inorganic Chemistry":
+        {
+            "playlist": "https://youtube.com/playlist?list=PLSkPdKrFDV7UKguDD3vBZpOowXuNJMiVG&si=bqB0vBsnky1h80oC"
+        }
+    }
+}

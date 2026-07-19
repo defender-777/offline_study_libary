@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Offline Study Library</title>
+    <link rel="stylesheet" href="./assets/css/reset.css">
+    <link rel="stylesheet" href="./assets/css/variables.css">
+    <link rel="stylesheet" href="./assets/css/base.css">
+    <link rel="stylesheet" href="./assets/css/layout.css">
+    <link rel="stylesheet" href="./assets/css/sidebar.css">
+    <link rel="stylesheet" href="./assets/css/header.css">
+    <link rel="stylesheet" href="./assets/css/cards.css">
+    <link rel="stylesheet" href="./assets/css/player.css">
+    <link rel="stylesheet" href="./assets/css/animations.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside id="app-sidebar" class="app-sidebar" aria-label="Study library navigation"></aside>
+      <div class="app-frame">
+        <header id="app-header" class="app-header"></header>
+        <main id="app-main" class="app-main" tabindex="-1"></main>
+        <footer class="app-footer">Offline Study Library frontend scaffold</footer>
+      </div>
+    </div>
+    <div id="app-toast" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+    <div id="app-modal" class="modal-region" aria-live="polite"></div>
+    <script type="module" src="./assets/js/app.js"></script>
+  </body>
+</html>

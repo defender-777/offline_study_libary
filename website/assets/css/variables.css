@@ -1,0 +1,62 @@
+:root {
+  --color-background: #080b10;
+  --color-background-elevated: #0e141b;
+  --color-surface: #121822;
+  --color-surface-soft: #162031;
+  --color-surface-raised: #1b2531;
+  --color-border: #233042;
+  --color-divider: #263445;
+  --color-text: #eef4fb;
+  --color-text-secondary: #aab8c9;
+  --color-text-muted: #738195;
+  --color-primary: #7bc9ff;
+  --color-primary-strong: #4da6f4;
+  --color-accent: #d2e47a;
+  --color-success: #72d7a6;
+  --color-warning: #f2c46d;
+  --color-danger: #f1837b;
+  --color-selection: rgba(123, 201, 255, 0.2);
+  --color-focus: #94d0ff;
+
+  --font-sans: "Aptos", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --font-size-display: clamp(1.9rem, 1.2vw, 2.4rem);
+  --font-size-2xl: clamp(1.35rem, 1vw, 1.7rem);
+  --font-size-xl: 1.2rem;
+  --font-size-lg: 1.04rem;
+  --font-size-md: 0.95rem;
+  --font-size-sm: 0.84rem;
+  --font-size-xs: 0.76rem;
+  --line-height-tight: 1.2;
+  --line-height-default: 1.5;
+
+  --space-1: 3px;
+  --space-2: 6px;
+  --space-3: 10px;
+  --space-4: 14px;
+  --space-5: 20px;
+  --space-6: 26px;
+  --space-7: 34px;
+  --space-8: 42px;
+  --space-9: 54px;
+  --space-10: 68px;
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --shadow-soft: 0 10px 32px rgb(0 0 0 / 0.22);
+  --shadow-elevated: 0 18px 48px rgb(0 0 0 / 0.22);
+  --duration-fast: 140ms;
+  --duration-normal: 200ms;
+  --easing-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  --sidebar-width: 15rem;
+  --header-height: 4.25rem;
+  --content-max: 110rem;
+  --z-sidebar: 20;
+  --z-header: 30;
+  --z-toast: 50;
+  --z-modal: 60;
+}
+

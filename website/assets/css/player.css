@@ -1,0 +1,124 @@
+.player-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(17rem, 0.8fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.player-stage {
+  display: grid;
+  gap: var(--space-3);
+  min-height: 24rem;
+  padding: var(--space-3);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-xl);
+  background:
+    linear-gradient(135deg, rgba(123, 201, 255, 0.08), transparent),
+    #090d13;
+}
+
+.player-stage__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.player-stage__navigation,
+.player-stage__speed {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.player-stage__speed label {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.player-stage__speed select {
+  min-height: 2.2rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-divider);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--color-text);
+}
+
+.player-video-wrapper {
+  position: relative;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: #000;
+  min-height: 20rem;
+}
+
+.player-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 20rem;
+  background: #000;
+}
+
+.player-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgba(0, 0, 0, 0.34);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.player-overlay--hidden {
+  display: none;
+}
+
+.player-overlay__message {
+  font-size: 1rem;
+}
+
+.player-rail {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.player-metadata {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.player-metadata-row {
+  display: grid;
+  gap: 0.2rem;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.player-metadata-row dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.player-metadata-row dd {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+@media (max-width: 900px) {
+  .player-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .player-stage__toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
