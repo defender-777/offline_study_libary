@@ -1,6 +1,5 @@
 /**
- * Renders an empty modal region scaffold.
- * TODO: Add focus trapping and dialog lifecycle management later.
+ * Renders the modal region container.
  * @returns {string}
  */
 export function renderModalRegion() {

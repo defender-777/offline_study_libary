@@ -1,12 +1,13 @@
 import { ROUTES } from "../constants.js";
 import { renderPageHeader } from "../components/page-header.js";
 import { renderSectionHeader } from "../components/section-header.js";
-import { renderSearchBox } from "../components/search-box.js";
-import { renderToolbar } from "../components/toolbar.js";
 import { renderVideoCard } from "../components/video-card.js";
+import { renderSubjectCard } from "../components/subject-card.js";
 import { renderEmptyState } from "../components/empty-state.js";
-import { getSubjects, getVideos, getSubjectBySlug, getVideosBySubject, getThumbnailUrl, getDurationLabel, getResolutionLabel } from "../api.js";
-import { getSubjectVideos, getSubjectSummaries, getFeaturedVideos } from "../services/discovery.js";
+import { getSubjects, getVideos, getSubjectBySlug, getVideosBySubject, getThumbnailUrl, getDurationLabel, getResolutionLabel, getSubjectSlug } from "../api.js";
+import { getSubjectVideos, getSubjectSummaries } from "../services/discovery.js";
+import { on } from "../utils/events.js";
+import { debounce } from "../utils/debounce.js";
 
 const SUBJECT_ACCENTS = [
   "#70b4ff",
@@ -21,6 +22,88 @@ function getAccent(index) {
   return SUBJECT_ACCENTS[index % SUBJECT_ACCENTS.length];
 }
 
+let _subjectSearchCleanup = null;
+
+/**
+ * Attaches live search to the subject detail video grid.
+ * @param {HTMLElement} container
+ * @param {Array<object>} videos - Full video list for the subject.
+ */
+export function mountSubjectView(container, videos) {
+  if (_subjectSearchCleanup) {
+    _subjectSearchCleanup();
+    _subjectSearchCleanup = null;
+  }
+
+  const input = container.querySelector("#subject-search-input");
+  const grid = container.querySelector("#subject-video-grid");
+  const countEl = container.querySelector("[data-subject-count]");
+
+  if (!input || !grid) {
+    return;
+  }
+
+  const allCards = Array.from(grid.querySelectorAll(".video-card"));
+
+  const filter = debounce((query) => {
+    const normalized = query.trim().toLowerCase();
+    let visible = 0;
+
+    allCards.forEach((card) => {
+      const text = (card.textContent || "").toLowerCase();
+      const show = !normalized || text.includes(normalized);
+      card.style.display = show ? "" : "none";
+      if (show) {
+        visible += 1;
+      }
+    });
+
+    if (countEl) {
+      countEl.textContent = normalized
+        ? `${visible} of ${allCards.length} videos`
+        : `${allCards.length} videos`;
+    }
+  }, 150);
+
+  const handleInput = (event) => filter(event.target.value);
+  const handleKeyDown = (event) => {
+    if (event.key === "Escape") {
+      input.value = "";
+      filter("");
+    }
+  };
+
+  const cleanup = [
+    on(input, "input", handleInput),
+    on(input, "keydown", handleKeyDown),
+  ];
+
+  _subjectSearchCleanup = () => cleanup.forEach((dispose) => dispose());
+  input.focus();
+}
+
+export function cleanupSubjectView() {
+  if (_subjectSearchCleanup) {
+    _subjectSearchCleanup();
+    _subjectSearchCleanup = null;
+  }
+}
+
+/**
+ * Renders a video card row for a given video.
+ */
+function renderSubjectVideoCard(video) {
+  return renderVideoCard({
+    title: video.title,
+    subject: video.subject,
+    duration: getDurationLabel(video),
+    resolution: getResolutionLabel(video),
+    thumbnail: getThumbnailUrl(video),
+    description: video.display_title || video.filename,
+    videoId: video.id,
+  });
+}
+
 /**
  * Renders the subject page using library data.
  * @param {{subjectSlug?:string}} [params]
@@ -32,129 +115,107 @@ export function render(params = {}) {
   const activeSubject = subjectSlug ? getSubjectBySlug(subjectSlug) : null;
   const videos = getVideos();
   const subjectVideos = activeSubject ? getSubjectVideos(videos, activeSubject.name) : [];
-  const featuredVideos = getFeaturedVideos(videos, 6);
-  const subjectStats = getSubjectSummaries(videos, 100);
-  const featuredSubjects = subjectStats.slice(0, 5);
   const isSubjectDetail = Boolean(activeSubject);
   const isSubjectMissing = Boolean(subjectSlug && !activeSubject);
 
   const pageTitle = isSubjectMissing
     ? "Subject not found"
     : isSubjectDetail
-      ? `Explore ${activeSubject.name}`
-      : "Explore topic collections and video rows.";
+      ? activeSubject.name
+      : "Subjects";
   const pageDescription = isSubjectMissing
-    ? `The subject "${subjectSlug}" was not found in the library.`
+    ? `No subject matching "${subjectSlug}" was found in the library.`
     : isSubjectDetail
-      ? `Browse videos for ${activeSubject.name} and related resources.`
-      : "Browse available subjects and preview featured videos from the library.";
+      ? `${subjectVideos.length} video${subjectVideos.length !== 1 ? "s" : ""} in this collection.`
+      : "Browse topic collections in your library.";
+
+  if (isSubjectMissing) {
+    return `
+      <section class="page-view" aria-labelledby="subject-title">
+        ${renderPageHeader({ eyebrow: "Subjects", title: "Subject not found", description: pageDescription })}
+        <section class="panel">
+          ${renderEmptyState({
+            title: "Subject not found",
+            message: `No subject matching "${subjectSlug}" exists in the loaded library.`,
+            action: `<a href="#${ROUTES.SUBJECT}" class="button">Browse subjects</a>`,
+          })}
+        </section>
+      </section>
+    `;
+  }
+
+  if (isSubjectDetail) {
+    return `
+      <section class="page-view" aria-labelledby="subject-title">
+        ${renderPageHeader({
+          eyebrow: "Subjects",
+          title: activeSubject.name,
+          description: `${subjectVideos.length} video${subjectVideos.length !== 1 ? "s" : ""} in this collection.`,
+        })}
+
+        <section class="panel">
+          <div class="subject-search-bar">
+            <div class="search-box">
+              <label class="search-box__label" for="subject-search-input">
+                <span class="visually-hidden">Filter videos in ${activeSubject.name}</span>
+                <input
+                  id="subject-search-input"
+                  class="search-box__input"
+                  type="search"
+                  placeholder="Filter videos…"
+                  autocomplete="off"
+                  aria-label="Filter videos in ${activeSubject.name}"
+                />
+              </label>
+            </div>
+            <span class="card-meta" data-subject-count>${subjectVideos.length} videos</span>
+          </div>
+
+          ${renderSectionHeader({ title: activeSubject.name, subtitle: "" })}
+          <div class="card-grid" id="subject-video-grid">
+            ${subjectVideos.length
+              ? subjectVideos.map(renderSubjectVideoCard).join("")
+              : renderEmptyState({
+                  title: "No videos found",
+                  message: `There are no videos in the ${activeSubject.name} collection.`,
+                })}
+          </div>
+        </section>
+      </section>
+    `;
+  }
+
+  // Subject listing page
+  const subjectStats = getSubjectSummaries(videos, 100);
+  const subjectStatMap = Object.fromEntries(subjectStats.map((s) => [s.subject, s.count]));
 
   return `
     <section class="page-view" aria-labelledby="subject-title">
       ${renderPageHeader({
         eyebrow: "Subjects",
-        title: pageTitle,
-        description: pageDescription,
+        title: "Subjects",
+        description: "Browse topic collections in your library.",
       })}
 
-      ${renderToolbar({
-        content: `
-          ${renderSearchBox({ placeholder: "Search subject", description: "Search is not live in this phase." })}
-          <div class="toolbar-item">Sort: Newest first</div>
-          <div class="toolbar-item">Filter: All durations</div>
-        `,
-      })}
-
-      ${isSubjectMissing ? `
-        <section class="panel">
-          ${renderEmptyState({
-            title: "Subject not found",
-            message: `The subject "${subjectSlug}" was not found in the loaded library.`,
-            action: `<a href="#${ROUTES.SUBJECT}">Browse available subjects</a>`,
-          })}
-        </section>
-      ` : isSubjectDetail ? `
-        <section class="panel">
-          ${renderSectionHeader({ title: activeSubject.name, subtitle: `${subjectVideos.length} videos` })}
-          <div class="card-grid">
-            ${subjectVideos.length
-              ? subjectVideos.map((video) => renderVideoCard({
-                  title: video.title,
-                  subject: video.subject,
-                  duration: getDurationLabel(video),
-                  resolution: getResolutionLabel(video),
-                  thumbnail: getThumbnailUrl(video),
-                  description: video.display_title || video.filename,
-                  videoId: video.id,
-                })).join("")
-              : renderEmptyState({
-                  title: "No videos found",
-                  message: `There are no videos available for ${activeSubject.name}.`,
-                })}
-          </div>
-        </section>
-      ` : `
-        <section class="panel">
-          ${renderSectionHeader({ title: "Topic Collections", subtitle: "Browse the subjects in your library." })}
-          <div class="subject-grid">
-            ${subjects.length
-              ? subjects.map((subject, index) => {
-                  const count = getVideosBySubject(subject.name).length;
-                  return renderVideoCard({
-                    title: subject.name,
-                    subject: `${count} videos`,
-                    duration: "—",
-                    resolution: "—",
-                    description: `${count} videos available`,
-                    thumbnail: null,
-                  });
-                }).join("")
-              : renderEmptyState({
-                  title: "No subjects available",
-                  message: "The library manifest has not indexed any subjects yet.",
-                  action: `<a href="#${ROUTES.HOME}">Return to library</a>`,
-                })}
-          </div>
-        </section>
-      `}
-
-      <section class="panel">
-        ${renderSectionHeader({ title: "Featured videos", subtitle: "Recent videos from the selected subjects." })}
-        <div class="card-grid">
-          ${featuredVideos.length
-            ? featuredVideos.map((video) => renderVideoCard({
-                title: video.title,
-                subject: video.subject,
-                duration: getDurationLabel(video),
-                resolution: getResolutionLabel(video),
-                thumbnail: getThumbnailUrl(video),
-                description: video.display_title || video.filename,
-                videoId: video.id,
-              })).join("")
-            : renderEmptyState({
-                title: "No featured videos",
-                message: "Library videos will appear here once indexed.",
-              })}
-        </div>
-      </section>
-      <section class="panel">
-        ${renderSectionHeader({ title: "Largest subjects", subtitle: "Most populated topic collections." })}
-        <div class="subject-grid">
-          ${featuredSubjects.length
-            ? featuredSubjects.map((subject, index) => renderVideoCard({
-                title: subject.subject,
-                subject: `${subject.count} videos`,
-                duration: "—",
-                resolution: "—",
-                description: `Popular subject collection`,
-                thumbnail: null,
-              })).join("")
-            : renderEmptyState({
-                title: "No subject summary available",
-                message: "Subject counts will appear once the discovery engine runs.",
-              })}
-        </div>
-      </section>
+      <div class="subject-grid">
+        ${subjects.length
+          ? subjects.map((subject, index) => {
+              const slug = getSubjectSlug(subject);
+              const count = subjectStatMap[subject.name] ?? getVideosBySubject(subject.name).length;
+              return renderSubjectCard({
+                title: subject.name,
+                subtitle: `${count} video${count !== 1 ? "s" : ""}`,
+                count,
+                accent: getAccent(index),
+                href: `#${ROUTES.SUBJECT}/${slug}`,
+              });
+            }).join("")
+          : renderEmptyState({
+              title: "No subjects available",
+              message: "The library has not indexed any subjects yet.",
+              action: `<a href="#${ROUTES.HOME}" class="button">Return to library</a>`,
+            })}
+      </div>
     </section>
   `;
 }

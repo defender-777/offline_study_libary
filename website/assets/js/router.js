@@ -1,8 +1,8 @@
 import { ROUTES, APP_NAME } from "./constants.js";
 import { getState } from "./state.js";
-import { getSubjectBySlug, getVideoById } from "./api.js";
+import { getSubjectBySlug, getVideoById, getVideosBySubject } from "./api.js";
 import { render as renderHome } from "./pages/home.js";
-import { render as renderSubject } from "./pages/subject.js";
+import { render as renderSubject, mountSubjectView, cleanupSubjectView } from "./pages/subject.js";
 import { render as renderPlayer, mountPlayerView, cleanupPlayerView } from "./pages/player.js";
 import { render as renderFavorites } from "./pages/favorites.js";
 import { render as renderHistory } from "./pages/history.js";
@@ -204,6 +204,7 @@ export function renderRoute(target) {
 
   cleanupPlayerView();
   cleanupSearchView();
+  cleanupSubjectView();
 
   if (!renderer) {
     target.innerHTML = `
@@ -227,6 +228,17 @@ export function renderRoute(target) {
 
   if (route === ROUTES.SEARCH) {
     mountSearchView(target);
+  }
+
+  if (route === ROUTES.SUBJECT && params.subjectSlug) {
+    const { library } = getState();
+    if (library) {
+      const subject = getSubjectBySlug(params.subjectSlug);
+      if (subject) {
+        const videos = getVideosBySubject(subject.name);
+        mountSubjectView(target, videos);
+      }
+    }
   }
 
   return route;

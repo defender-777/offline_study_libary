@@ -1,62 +1,113 @@
-:root {
-  --color-background: #080b10;
-  --color-background-elevated: #0e141b;
-  --color-surface: #121822;
-  --color-surface-soft: #162031;
-  --color-surface-raised: #1b2531;
-  --color-border: #233042;
-  --color-divider: #263445;
-  --color-text: #eef4fb;
-  --color-text-secondary: #aab8c9;
-  --color-text-muted: #738195;
-  --color-primary: #7bc9ff;
-  --color-primary-strong: #4da6f4;
-  --color-accent: #d2e47a;
-  --color-success: #72d7a6;
-  --color-warning: #f2c46d;
-  --color-danger: #f1837b;
-  --color-selection: rgba(123, 201, 255, 0.2);
-  --color-focus: #94d0ff;
+/* ============================================================
+   COLOUR SYSTEM — Graphite + Violet
+   ============================================================
+   Philosophy: neutral dark surfaces with a single restrained
+   violet accent. The interface becomes a stage for content.
 
+   Inspired by: Linear, Cursor, Raycast, VS Code Dark Modern
+
+   Surface scale (luminance only, no hue shift):
+   --color-background          #0a0a0b   deepest — page canvas
+   --color-background-elevated #111113   sidebar, header chrome
+   --color-surface             #18181b   card resting surface
+   --color-surface-soft        #1e1e22   card hover, input bg
+   --color-surface-raised      #27272c   dropdowns, tooltips
+
+   Accent: violet — intentional, restrained, editorial
+   ============================================================ */
+
+:root {
+  /* ── Surfaces ───────────────────────────────────────────── */
+  --color-background:          #0a0a0b;
+  --color-background-elevated: #111113;
+  --color-surface:             #18181b;
+  --color-surface-soft:        #1e1e22;
+  --color-surface-raised:      #27272c;
+
+  /* ── Borders & dividers ─────────────────────────────────── */
+  /* Kept subtle — elevation does the work, borders whisper  */
+  --color-border:              #2a2a30;
+  --color-divider:             #2a2a30;
+
+  /* ── Text hierarchy ─────────────────────────────────────── */
+  /* No blue cast. Warm-neutral whites for a natural feel.   */
+  --color-text:                #f4f4f5;
+  --color-text-secondary:      #a1a1aa;
+  --color-text-muted:          #52525b;
+
+  /* ── Accent — violet ────────────────────────────────────── */
+  /* Used ONLY for: active nav, focus ring, links, progress  */
+  --color-primary:             #a78bfa;
+  --color-primary-strong:      #8b5cf6;
+
+  /* ── Semantic ───────────────────────────────────────────── */
+  /* Desaturated — should never compete with thumbnails      */
+  --color-accent:              #d4c5f9;   /* pale violet, eyebrow/mono label */
+  --color-success:             #6ee7b7;   /* emerald, muted                  */
+  --color-warning:             #fcd34d;   /* amber, muted                    */
+  --color-danger:              #f87171;   /* rose, muted                     */
+
+  /* ── Interaction ────────────────────────────────────────── */
+  --color-selection:           rgba(167, 139, 250, 0.15);
+  --color-focus:               #a78bfa;
+
+  /* ── Typography ─────────────────────────────────────────── */
   --font-sans: "Aptos", "Segoe UI", system-ui, sans-serif;
   --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
-  --font-size-display: clamp(1.9rem, 1.2vw, 2.4rem);
-  --font-size-2xl: clamp(1.35rem, 1vw, 1.7rem);
-  --font-size-xl: 1.2rem;
-  --font-size-lg: 1.04rem;
-  --font-size-md: 0.95rem;
-  --font-size-sm: 0.84rem;
-  --font-size-xs: 0.76rem;
-  --line-height-tight: 1.2;
-  --line-height-default: 1.5;
+  --font-size-display: clamp(1.6rem, 2vw, 2.2rem);
+  --font-size-2xl:     clamp(1.2rem, 1.1vw, 1.5rem);
+  --font-size-xl:      1.1rem;
+  --font-size-lg:      1rem;
+  --font-size-md:      0.9375rem;
+  --font-size-sm:      0.8125rem;
+  --font-size-xs:      0.725rem;
+  --line-height-tight:   1.2;
+  --line-height-default: 1.55;
 
-  --space-1: 3px;
-  --space-2: 6px;
-  --space-3: 10px;
-  --space-4: 14px;
-  --space-5: 20px;
-  --space-6: 26px;
-  --space-7: 34px;
-  --space-8: 42px;
-  --space-9: 54px;
-  --space-10: 68px;
+  /* ── Spacing ────────────────────────────────────────────── */
+  --space-1:  3px;
+  --space-2:  6px;
+  --space-3:  10px;
+  --space-4:  14px;
+  --space-5:  20px;
+  --space-6:  28px;
+  --space-7:  36px;
+  --space-8:  48px;
+  --space-9:  64px;
+  --space-10: 80px;
 
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
-  --shadow-soft: 0 10px 32px rgb(0 0 0 / 0.22);
-  --shadow-elevated: 0 18px 48px rgb(0 0 0 / 0.22);
-  --duration-fast: 140ms;
+  /* ── Shape ──────────────────────────────────────────────── */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+
+  /* ── Shadows — deep, warm-neutral ──────────────────────── */
+  --shadow-soft:     0 4px 24px rgb(0 0 0 / 0.5);
+  --shadow-elevated: 0 12px 40px rgb(0 0 0 / 0.65);
+  --shadow-card:     0 2px 12px rgb(0 0 0 / 0.6);
+
+  /* ── Motion ─────────────────────────────────────────────── */
+  --duration-fast:   120ms;
   --duration-normal: 200ms;
+  --duration-slow:   320ms;
   --easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --easing-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  --sidebar-width: 15rem;
-  --header-height: 4.25rem;
-  --content-max: 110rem;
-  --z-sidebar: 20;
-  --z-header: 30;
-  --z-toast: 50;
-  --z-modal: 60;
+  /* ── Shell dimensions ───────────────────────────────────── */
+  --sidebar-rail:     56px;
+  --sidebar-expanded: 220px;
+  --sidebar-width:    var(--sidebar-rail);
+
+  --header-height:  56px;
+  --content-max:    1600px;
+  --z-sidebar:      20;
+  --z-header:       30;
+  --z-toast:        50;
+  --z-modal:        60;
 }
 
+/* Expanded state toggled by JS via data-sidebar-expanded on <html> */
+:root[data-sidebar-expanded="true"] {
+  --sidebar-width: var(--sidebar-expanded);
+}

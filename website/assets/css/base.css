@@ -1,15 +1,11 @@
 body {
   min-height: 100vh;
   margin: 0;
-  background:
-    linear-gradient(135deg, rgb(123 201 255 / 0.08), transparent 32rem),
-    radial-gradient(circle at top right, rgb(210 228 122 / 0.08), transparent 28rem),
-    var(--color-background);
+  background: var(--color-background);
   color: var(--color-text);
   font-family: var(--font-sans);
   font-size: var(--font-size-md);
   line-height: var(--line-height-default);
-  letter-spacing: 0.01em;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -115,8 +111,8 @@ input:disabled {
 }
 
 .search-box input:focus {
-  border-color: rgba(123, 201, 255, 0.5);
-  box-shadow: 0 0 0 4px rgba(123, 201, 255, 0.12);
+  border-color: rgba(167, 139, 250, 0.45);
+  box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.1);
 }
 
 .search-box input:disabled {
@@ -209,14 +205,16 @@ input:disabled {
 .page-title {
   margin: 0;
   font-size: var(--font-size-2xl);
-  line-height: 1.1;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
 }
 
 .page-copy,
 .section-copy,
 .card-copy,
 .empty-state__content p {
-  color: var(--color-text-secondary);
+  color: var(--color-text-muted);
   margin: 0;
   line-height: 1.55;
 }
@@ -239,13 +237,13 @@ input:disabled {
 .button:hover,
 .button:focus-visible {
   transform: translateY(-1px);
-  border-color: rgba(123, 201, 255, 0.36);
+  border-color: rgba(167, 139, 250, 0.3);
   background: var(--color-surface-raised);
 }
 
 .button-primary {
-  background: linear-gradient(135deg, rgba(123, 201, 255, 0.2), rgba(77, 166, 244, 0.18));
-  border-color: rgba(123, 201, 255, 0.3);
+  background: rgba(167, 139, 250, 0.12);
+  border-color: rgba(167, 139, 250, 0.25);
 }
 
 .button-secondary {

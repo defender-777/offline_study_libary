@@ -1,11 +1,11 @@
-import { renderPageHeader } from "../components/page-header.js";
 import { renderSectionHeader } from "../components/section-header.js";
 import { renderStatCard } from "../components/stat-card.js";
 import { renderVideoCard } from "../components/video-card.js";
 import { renderSubjectCard } from "../components/subject-card.js";
 import { renderEmptyState } from "../components/empty-state.js";
-import { getSubjects, getVideos, getThumbnailUrl, getDurationLabel, getResolutionLabel, getLibraryStats } from "../api.js";
+import { getSubjects, getVideos, getThumbnailUrl, getDurationLabel, getResolutionLabel, getLibraryStats, getSubjectSlug } from "../api.js";
 import { getRecentVideos, getSubjectSummaries, getFeaturedVideos } from "../services/discovery.js";
+import { ROUTES } from "../constants.js";
 
 const SUBJECT_ACCENTS = [
   "#70b4ff",
@@ -20,134 +20,99 @@ function getAccent(index) {
   return SUBJECT_ACCENTS[index % SUBJECT_ACCENTS.length];
 }
 
-function normalizeActivity(videos) {
-  return videos.map((video) => ({
+/**
+ * @param {object} video
+ * @returns {string}
+ */
+function videoCard(video) {
+  return renderVideoCard({
     title: video.title,
-    meta: `${video.subject} · ${getDurationLabel(video)}`,
-    timestamp: video.created_time || video.last_modified || "Recent",
-  }));
+    subject: video.subject,
+    duration: getDurationLabel(video),
+    resolution: getResolutionLabel(video),
+    thumbnail: getThumbnailUrl(video),
+    description: video.display_title || video.filename,
+    videoId: video.id,
+  });
 }
 
 /**
- * Renders the library home page with real library content.
+ * Renders the library home page.
  * @returns {string}
  */
 export function render() {
-  const stats = getLibraryStats();
+  const stats    = getLibraryStats();
   const subjects = getSubjects();
-  const videos = getVideos();
-  const continueWatching = getRecentVideos(videos, 4);
-  const recentlyAdded = getFeaturedVideos(videos, 4);
-  const activity = normalizeActivity(getRecentVideos(videos, 3));
+  const videos   = getVideos();
+
+  const recentlyAdded  = getRecentVideos(videos, 12);
+  const featured       = getFeaturedVideos(videos, 12);
+  const recentActivity = getRecentVideos(videos, 3);
 
   const statCards = [
-    { label: "Subjects", value: String(stats.totalSubjects), helper: "Organized topic collections" },
-    { label: "Videos", value: String(stats.totalVideos), helper: "Available study content" },
-    { label: "Continue", value: String(continueWatching.length), helper: "Recent viewing sessions" },
-    { label: "Activity", value: String(activity.length), helper: "Latest library actions" },
+    { label: "Subjects", value: String(stats.totalSubjects), helper: "Topic collections" },
+    { label: "Videos",   value: String(stats.totalVideos),   helper: "Available videos"  },
+    { label: "Recent",   value: String(recentlyAdded.length), helper: "Recently added"   },
+    { label: "Activity", value: String(recentActivity.length), helper: "Latest additions" },
   ];
 
   return `
-    <section class="page-view" aria-labelledby="home-title">
-      ${renderPageHeader({
-        eyebrow: "Dashboard",
-        title: "Your offline study library",
-        description: "Browse subjects, recent videos, and continuing learning sessions.",
-      })}
+    <section class="page-view" aria-label="Library home">
 
-      <div class="stats-grid">
-        ${statCards.map((stat) => renderStatCard(stat)).join("")}
-      </div>
-
-      <div class="page-grid">
-        <section class="panel span-8">
-          ${renderSectionHeader({
-            title: "Continue Watching",
-            subtitle: "Resume the most recent videos from your library.",
-          })}
-          <div class="card-grid">
-            ${continueWatching.length
-              ? continueWatching.map((video) => renderVideoCard({
-                  title: video.title,
-                  subject: video.subject,
-                  duration: getDurationLabel(video),
-                  resolution: getResolutionLabel(video),
-                  thumbnail: getThumbnailUrl(video),
-                  description: video.display_title || video.filename,
-                  progress: 0,
-                  videoId: video.id,
-                })).join("")
-              : renderEmptyState({
-                  title: "No recently watched videos",
-                  message: "Your library is ready, but no continue watching history exists yet.",
-                })}
-          </div>
-        </section>
-
-        <aside class="panel span-4">
-          ${renderSectionHeader({
-            title: "Recent Activity",
-            subtitle: "Latest library changes and updates.",
-          })}
-          <div class="activity-grid">
-            ${activity.length
-              ? activity.map((entry) => `
-                <article class="timeline-card">
-                  <span class="card-meta">${entry.timestamp}</span>
-                  <h4>${entry.title}</h4>
-                  <p class="card-copy">${entry.meta}</p>
-                </article>
-              `).join("")
-              : renderEmptyState({
-                  title: "No activity yet",
-                  message: "Recent library activity will appear once you start exploring videos.",
-                })}
-          </div>
-        </aside>
-      </div>
-
-      <section class="panel">
+      <!-- Recently Added shelf -->
+      <div class="media-section">
         ${renderSectionHeader({
           title: "Recently Added",
-          subtitle: "The newest videos in your library.",
+          subtitle: recentlyAdded.length
+            ? `${recentlyAdded.length} video${recentlyAdded.length !== 1 ? "s" : ""}`
+            : "",
         })}
-        <div class="card-grid">
-          ${recentlyAdded.length
-            ? recentlyAdded.map((video) => renderVideoCard({
-                title: video.title,
-                subject: video.subject,
-                duration: getDurationLabel(video),
-                resolution: getResolutionLabel(video),
-                thumbnail: getThumbnailUrl(video),
-                description: video.display_title || video.filename,
-                videoId: video.id,
-              })).join("")
-            : renderEmptyState({
-                title: "No videos available",
-                message: "Your videos.json library has no entries yet.",
-              })}
-        </div>
-      </section>
+        ${recentlyAdded.length
+          ? `<div class="media-shelf">${recentlyAdded.map(videoCard).join("")}</div>`
+          : renderEmptyState({ title: "No videos yet", message: "Your library has no videos yet." })
+        }
+      </div>
 
-      <section class="panel">
+      <!-- Featured shelf -->
+      ${featured.length ? `
+        <div class="media-section">
+          ${renderSectionHeader({ title: "From the Library", subtitle: "All available videos" })}
+          <div class="media-shelf">${featured.map(videoCard).join("")}</div>
+        </div>
+      ` : ""}
+
+      <!-- Subjects grid -->
+      <div class="media-section">
         ${renderSectionHeader({
           title: "Subjects",
-          subtitle: "Browse topic collections in your library.",
+          subtitle: `${subjects.length} collection${subjects.length !== 1 ? "s" : ""}`,
         })}
-        <div class="subject-grid">
-          ${subjects.length
-            ? subjects.map((subject, index) => renderSubjectCard({
-                title: subject.name,
-                subtitle: `${subject.video_count ?? subject.videos?.length ?? 0} videos`,
-                count: subject.video_count ?? subject.videos?.length ?? 0,
-                accent: getAccent(index),
-              })).join("")
-            : renderEmptyState({
-                title: "No subjects found",
-                message: "The library manifest does not contain any subjects.",
-              })}
+        ${subjects.length
+          ? `<div class="subject-grid">
+              ${subjects.map((subject, index) => {
+                const slug  = getSubjectSlug(subject);
+                const count = subject.video_count ?? subject.videos?.length ?? 0;
+                return renderSubjectCard({
+                  title: subject.name,
+                  subtitle: `${count} video${count !== 1 ? "s" : ""}`,
+                  count,
+                  accent: getAccent(index),
+                  href: `#${ROUTES.SUBJECT}/${slug}`,
+                });
+              }).join("")}
+            </div>`
+          : renderEmptyState({ title: "No subjects found", message: "The library has no subjects." })
+        }
+      </div>
+
+      <!-- Stats — secondary, below the content -->
+      <div class="media-section">
+        ${renderSectionHeader({ title: "Library Stats" })}
+        <div class="stats-grid">
+          ${statCards.map((stat) => renderStatCard(stat)).join("")}
         </div>
-      </section>
+      </div>
+
     </section>
   `;
 }

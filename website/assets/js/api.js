@@ -18,7 +18,13 @@ function resolveThumbnailUrl(thumbnail) {
   }
 
   const normalized = String(thumbnail).replace(/^\/+/, "");
-  return `../${encodeURI(normalized)}`;
+  // Encode each path segment individually to handle spaces and special
+  // characters in filenames while preserving the directory separators.
+  const encoded = normalized
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  return `../${encoded}`;
 }
 
 function normalizeLibrary(rawData) {
@@ -169,7 +175,30 @@ export function getThumbnailUrl(video) {
  * @returns {string}
  */
 export function getDurationLabel(video) {
-  return String(video?.duration_formatted || video?.duration || "Unknown");
+  const raw = video?.duration_formatted || video?.duration;
+  if (!raw) {
+    return "Unknown";
+  }
+  const str = String(raw).trim();
+  // Treat zero-value placeholders produced by the metadata generator as unknown.
+  if (str === "00:00" || str === "0" || str === "0:00" || str === "0.0") {
+    return "Unknown";
+  }
+  return str;
+}
+
+/**
+ * Extracts a resolution label like "360p" from the video title when the
+ * structured metadata contains zero-value dimensions.
+ * @param {string} title
+ * @returns {string|null}
+ */
+function parseResolutionFromTitle(title) {
+  if (!title) {
+    return null;
+  }
+  const match = String(title).match(/\b(\d{3,4}p)\b/i);
+  return match ? match[1].toLowerCase() : null;
 }
 
 /**
@@ -179,8 +208,8 @@ export function getDurationLabel(video) {
 export function getResolutionLabel(video) {
   const resolution = video?.resolution;
 
-  if (typeof resolution === "string") {
-    return resolution;
+  if (typeof resolution === "string" && resolution.trim()) {
+    return resolution.trim();
   }
 
   if (resolution && typeof resolution === "object") {
@@ -189,6 +218,12 @@ export function getResolutionLabel(video) {
     if (width > 0 && height > 0) {
       return `${height}p`;
     }
+  }
+
+  // Structured metadata is missing or zero — try parsing from the display title.
+  const fromTitle = parseResolutionFromTitle(video?.title || video?.display_title || video?.filename);
+  if (fromTitle) {
+    return fromTitle;
   }
 
   return "Unknown";

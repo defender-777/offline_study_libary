@@ -1,5 +1,5 @@
 /**
- * Reusable form control renderers for Phase 4.2 visual layouts.
+ * Reusable form control renderers for the settings page.
  */
 
 /**

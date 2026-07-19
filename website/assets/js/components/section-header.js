@@ -8,7 +8,7 @@ export function renderSectionHeader({ title, subtitle = "", action = "" }) {
   <div class="section-header">
     <div>
       <h3>${title}</h3>
-      ${subtitle ? `<p class="section-copy">${subtitle}</p>` : ""}
+      ${subtitle ? `<span class="section-copy">${subtitle}</span>` : ""}
     </div>
     ${action ? `<div class="section-action">${action}</div>` : ""}
   </div>

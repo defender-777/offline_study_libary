@@ -48,9 +48,9 @@ const defaultSettings = [
 ];
 
 const aboutInfo = {
-  version: "4.3.0-preview",
-  build: "real-library-integration",
-  description: "Settings are still visual-only, now powered by the loaded library manifest.",
+  version: "1.0",
+  build: "offline-study-library",
+  description: "Offline Study Library — open-source, no install required.",
 };
 
 /**
@@ -62,8 +62,8 @@ export function render() {
     <section class="page-view" aria-labelledby="settings-title">
       ${renderPageHeader({
         eyebrow: "Settings",
-        title: "Application preferences and library configuration.",
-        description: "Layout-only settings sections with disabled controls.",
+        title: "Settings",
+        description: "Application preferences and library configuration.",
       })}
 
       <div class="page-grid">

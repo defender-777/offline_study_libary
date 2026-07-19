@@ -4,7 +4,7 @@ import { renderEmptyState } from "../components/empty-state.js";
 import { getVideos } from "../api.js";
 
 /**
- * Renders the history page with a placeholder experience.
+ * Renders the history page.
  * @returns {string}
  */
 export function render() {
@@ -14,19 +14,19 @@ export function render() {
     <section class="page-view" aria-labelledby="history-title">
       ${renderPageHeader({
         eyebrow: "History",
-        title: "Track your study sessions and timeline.",
-        description: "History will reflect actual viewing progress in later phases.",
+        title: "History",
+        description: "Your recently watched videos will appear here.",
       })}
 
       <section class="panel">
-        ${renderSectionHeader({ title: "Recent activity" })}
+        ${renderSectionHeader({ title: "Recently watched" })}
         ${hasVideos
           ? renderEmptyState({
-              title: "History is coming soon",
-              message: "Your video library is loaded, but session history is not implemented yet.",
+              title: "No history yet",
+              message: "Videos you watch will be recorded here.",
             })
           : renderEmptyState({
-              title: "No library loaded",
+              title: "Library not loaded",
               message: "Load your videos.json manifest to begin tracking history.",
             })}
       </section>

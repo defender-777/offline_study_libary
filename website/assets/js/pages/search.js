@@ -289,9 +289,8 @@ export function render() {
           content: `
             ${renderSearchBox({
               id: "search-query-input",
-              placeholder: "Search the library",
+              placeholder: "Search videos, subjects, titles…",
               value: searchQuery,
-              description: "Type to search instantly after a short debounce.",
               ariaLabel: "Library search",
             })}
             ${renderFilterRow(filters, filterOptions)}

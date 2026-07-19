@@ -1,6 +1,5 @@
 /**
- * Renders an empty toast region scaffold.
- * TODO: Queue and dismiss toast messages in a future phase.
+ * Renders the toast region container.
  * @returns {string}
  */
 export function renderToastRegion() {

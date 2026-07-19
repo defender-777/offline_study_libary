@@ -1,8 +1,8 @@
 import { renderRoute, parseRoute, getRouteMeta, navigate } from "./router.js";
 import { ROUTES, APP_NAME } from "./constants.js";
 import { setState, subscribe, getState } from "./state.js";
-import { renderSidebar } from "./components/sidebar.js";
-import { renderHeader } from "./components/header.js";
+import { renderSidebar, mountSidebar, initSidebar } from "./components/sidebar.js";
+import { renderHeader, mountHeader } from "./components/header.js";
 import { renderToastRegion } from "./components/toast.js";
 import { renderModalRegion } from "./components/modal.js";
 import { requiredElement } from "./utils/dom.js";
@@ -20,7 +20,9 @@ const modal = requiredElement("#app-modal");
  */
 function renderApp() {
   sidebar.innerHTML = renderSidebar();
+  mountSidebar(sidebar);
   header.innerHTML = renderHeader();
+  mountHeader(header);
   renderRoute(main);
   setDocumentTitle();
 }
@@ -46,6 +48,9 @@ function handleMainClick(event) {
  * Initializes local-only scaffold state and event listeners.
  */
 async function init() {
+  // Apply persisted sidebar state before first render
+  initSidebar();
+
   setState({
     loading: true,
     error: null,

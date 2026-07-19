@@ -1,24 +1,13 @@
 import { ROUTES } from "../constants.js";
-import { renderPageHeader } from "../components/page-header.js";
-import { renderSectionHeader } from "../components/section-header.js";
 import { renderVideoCard } from "../components/video-card.js";
 import { renderEmptyState } from "../components/empty-state.js";
 import { getVideoById, getVideosBySubject, getThumbnailUrl, getDurationLabel, getResolutionLabel, getVideos } from "../api.js";
-import { getVideoSourceUrl, getVideoMimeType, discoverSubtitleTracks, formatFileSize } from "../utils/media.js";
+import { getVideoSourceUrl, getVideoMimeType, discoverSubtitleTracks } from "../utils/media.js";
 import { getRelatedVideos } from "../services/discovery.js";
 import { navigate } from "../router.js";
 
 const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 let playerContext = null;
-
-function renderMetadataRow(label, value) {
-  return `
-    <div class="player-metadata-row">
-      <dt>${label}</dt>
-      <dd>${value}</dd>
-    </div>
-  `;
-}
 
 function renderSpeedOptions() {
   return PLAYBACK_SPEEDS.map((speed) => `
@@ -312,6 +301,26 @@ export function mountPlayerView(container) {
   const nextVideo = nextVideoId ? getVideoById(nextVideoId) : null;
 
   registerPlayerEvents(context, currentVideo, previousVideo, nextVideo);
+
+  // ── Description toggle ──────────────────────────────────
+  // State is kept in-memory for the lifetime of this mounted view.
+  // The CSS grid-template-rows trick handles the smooth animation;
+  // we only need to toggle the data-expanded attribute and aria-expanded.
+  const descPanel  = container.querySelector("[data-player-desc]");
+  const descToggle = container.querySelector("[data-player-desc-toggle]");
+
+  if (descPanel && descToggle) {
+    let descExpanded = false;
+
+    const handleDescToggle = () => {
+      descExpanded = !descExpanded;
+      descPanel.dataset.expanded  = String(descExpanded);
+      descToggle.setAttribute("aria-expanded", String(descExpanded));
+    };
+
+    descToggle.addEventListener("click", handleDescToggle);
+    context.eventListeners.push({ target: descToggle, type: "click", listener: handleDescToggle });
+  }
 }
 
 export function render(params = {}) {
@@ -322,15 +331,10 @@ export function render(params = {}) {
   if (!videoId) {
     return `
       <section class="page-view" aria-labelledby="player-title">
-        ${renderPageHeader({
-          eyebrow: "Player",
-          title: "Select a video",
-          description: "Choose a video from the library to begin playback.",
-        })}
         ${renderEmptyState({
           title: "No video selected",
-          message: "Please choose a video from the library or subject list.",
-          action: `<a href="#${ROUTES.HOME}">Return to library</a>`,
+          message: "Choose a video from the library to begin playback.",
+          action: `<a href="#${ROUTES.HOME}" class="button">Browse library</a>`,
         })}
       </section>
     `;
@@ -339,50 +343,80 @@ export function render(params = {}) {
   if (invalidVideo) {
     return `
       <section class="page-view" aria-labelledby="player-title">
-        ${renderPageHeader({
-          eyebrow: "Player",
-          title: "Video not found",
-          description: "The requested video could not be found in your library.",
-        })}
         ${renderEmptyState({
           title: "Video not found",
           message: `The video ID "${videoId}" does not exist in the loaded library.`,
-          action: `<a href="#${ROUTES.HOME}">Return to library</a>`,
+          action: `<a href="#${ROUTES.HOME}" class="button">Browse library</a>`,
         })}
       </section>
     `;
   }
 
   const subjectVideos = getVideosBySubject(currentVideo.subject);
-  const currentIndex = subjectVideos.findIndex((video) => String(video.id) === String(currentVideo.id));
+  const currentIndex = subjectVideos.findIndex((v) => String(v.id) === String(currentVideo.id));
   const previousVideo = currentIndex > 0 ? subjectVideos[currentIndex - 1] : null;
   const nextVideo = currentIndex >= 0 && currentIndex < subjectVideos.length - 1 ? subjectVideos[currentIndex + 1] : null;
-  const relatedVideos = getRelatedVideos(currentVideo, getVideos(), 4);
+  const relatedVideos = getRelatedVideos(currentVideo, getVideos(), 8);
   const sourceUrl = getVideoSourceUrl(currentVideo);
   const posterUrl = getThumbnailUrl(currentVideo) || "";
-  const description = currentVideo.description || currentVideo.display_title || currentVideo.filename || "No description available.";
+  const description = currentVideo.description || currentVideo.display_title || currentVideo.filename || "";
+
+  // ── Sidebar: Up Next block ──────────────────────────────
+  const upNextBlock = nextVideo ? `
+    <div class="player-upnext">
+      <p class="player-upnext__label">Up Next</p>
+      ${renderVideoCard({
+        title: nextVideo.title,
+        subject: nextVideo.subject,
+        duration: getDurationLabel(nextVideo),
+        resolution: getResolutionLabel(nextVideo),
+        thumbnail: getThumbnailUrl(nextVideo),
+        videoId: nextVideo.id,
+        layout: "list",
+      })}
+    </div>
+  ` : "";
+
+  // ── Sidebar: Related list ───────────────────────────────
+  // Exclude the next video from the related list to avoid duplication
+  const sidebarVideos = relatedVideos.filter((v) => !nextVideo || String(v.id) !== String(nextVideo.id));
+
+  const relatedBlock = sidebarVideos.length ? `
+    <div class="player-related">
+      <p class="player-related__label">Related</p>
+      <div class="player-related__list">
+        ${sidebarVideos.map((v) => renderVideoCard({
+          title: v.title,
+          subject: v.subject,
+          duration: getDurationLabel(v),
+          resolution: getResolutionLabel(v),
+          thumbnail: getThumbnailUrl(v),
+          videoId: v.id,
+          layout: "list",
+          selected: String(v.id) === String(currentVideo.id),
+        })).join("")}
+      </div>
+    </div>
+  ` : "";
+
+  // ── Meta strip badges ───────────────────────────────────
+  const durationLabel    = getDurationLabel(currentVideo);
+  const resolutionLabel  = getResolutionLabel(currentVideo);
+  const metaItems = [
+    `<span class="badge badge-pill">${currentVideo.subject}</span>`,
+    durationLabel   !== "Unknown" ? `<span class="badge badge-duration">${durationLabel}</span>`   : "",
+    resolutionLabel !== "Unknown" ? `<span class="badge badge-resolution">${resolutionLabel}</span>` : "",
+  ].filter(Boolean).join("");
 
   return `
     <section class="page-view" aria-labelledby="player-title">
-      ${renderPageHeader({
-        eyebrow: "Player",
-        title: currentVideo.title,
-        description: `Watch ${currentVideo.subject} playback with full offline controls.`,
-      })}
 
       <div class="player-shell" data-player-shell tabindex="0">
-        <section class="player-stage panel">
-          <div class="player-stage__toolbar">
-            <div class="player-stage__navigation">
-              <button type="button" class="button" data-player-prev data-video-id="${previousVideo?.id ?? ""}"${!previousVideo ? " disabled" : ""} aria-label="Previous video">Previous</button>
-              <button type="button" class="button" data-player-next data-video-id="${nextVideo?.id ?? ""}"${!nextVideo ? " disabled" : ""} aria-label="Next video">Next</button>
-            </div>
-            <div class="player-stage__speed">
-              <label for="player-speed-select">Speed</label>
-              <select id="player-speed-select" data-player-speed aria-label="Playback speed">${renderSpeedOptions()}</select>
-            </div>
-          </div>
 
+        <!-- ── Primary: video + info ── -->
+        <div class="player-primary">
+
+          <!-- Video -->
           <div class="player-video-wrapper">
             <video
               id="video-player"
@@ -393,7 +427,7 @@ export function render(params = {}) {
               playsinline
               controlslist="nodownload noremoteplayback"
               poster="${posterUrl}"
-              aria-label="Video player for ${currentVideo.title}"
+              aria-label="Video player for ${currentVideo.title.replace(/"/g, "&quot;")}"
             >
               <source src="${sourceUrl || ""}" type="${getVideoMimeType(currentVideo)}" />
               <p>Your browser does not support HTML5 video playback.</p>
@@ -403,40 +437,79 @@ export function render(params = {}) {
               <button type="button" class="button button-primary hidden" data-player-replay>Replay</button>
             </div>
           </div>
-        </section>
 
-        <aside class="player-rail">
-          <section class="panel">
-            ${renderSectionHeader({ title: "Video details" })}
-            <dl class="player-metadata">
-              ${renderMetadataRow("Subject", currentVideo.subject)}
-              ${renderMetadataRow("Duration", getDurationLabel(currentVideo))}
-              ${renderMetadataRow("Resolution", getResolutionLabel(currentVideo))}
-              ${renderMetadataRow("Filename", currentVideo.filename)}
-              ${renderMetadataRow("File size", formatFileSize(Number(currentVideo.file_size_bytes)))}
-              ${renderMetadataRow("Date added", currentVideo.created_time || currentVideo.last_modified || "Unknown")}
-              ${renderMetadataRow("Description", description)}
-            </dl>
-          </section>
+          <!-- Title + toolbar -->
+          <div class="player-info">
+            <h1 id="player-title" class="player-title">${currentVideo.title}</h1>
+            <div class="player-toolbar">
+              <div class="player-toolbar__nav">
+                <button
+                  type="button"
+                  class="player-nav-btn player-nav-btn--prev"
+                  data-player-prev
+                  data-video-id="${previousVideo?.id ?? ""}"
+                  ${!previousVideo ? "disabled" : ""}
+                  aria-label="Previous video${previousVideo ? `: ${previousVideo.title}` : ""}"
+                >Prev</button>
+                <button
+                  type="button"
+                  class="player-nav-btn player-nav-btn--next"
+                  data-player-next
+                  data-video-id="${nextVideo?.id ?? ""}"
+                  ${!nextVideo ? "disabled" : ""}
+                  aria-label="Next video${nextVideo ? `: ${nextVideo.title}` : ""}"
+                >Next</button>
+              </div>
+              <div class="player-speed">
+                <label for="player-speed-select" class="player-speed__label">Speed</label>
+                <select
+                  id="player-speed-select"
+                  class="player-speed__select"
+                  data-player-speed
+                  aria-label="Playback speed"
+                >${renderSpeedOptions()}</select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Meta strip -->
+          <div class="player-meta-strip" aria-label="Video metadata">
+            ${metaItems}
+          </div>
+
+          <!-- Description -->
+          ${description ? `
+          <div class="player-desc" data-player-desc>
+            <button
+              type="button"
+              class="player-desc__toggle"
+              data-player-desc-toggle
+              aria-expanded="false"
+              aria-controls="player-desc-body"
+            >
+              Description
+              <svg class="player-desc__chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M3 6l5 5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div class="player-desc__body" id="player-desc-body" role="region" aria-label="Description">
+              <div class="player-desc__inner">
+                <p class="player-desc__text">${description.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+              </div>
+            </div>
+          </div>
+          ` : ""}
+
+        </div><!-- /.player-primary -->
+
+        <!-- ── Sidebar: Up Next + Related ── -->
+        <aside class="player-sidebar" aria-label="Up next and related videos">
+          ${upNextBlock}
+          ${relatedBlock}
         </aside>
-      </div>
 
-      <section class="panel">
-        ${renderSectionHeader({ title: "Related videos", subtitle: "More videos from this subject." })}
-        <div class="card-grid">
-          ${relatedVideos.length
-            ? relatedVideos.map((video) => renderVideoCard({
-                title: video.title,
-                subject: video.subject,
-                duration: getDurationLabel(video),
-                resolution: getResolutionLabel(video),
-                thumbnail: getThumbnailUrl(video),
-                description: video.display_title || video.filename,
-                videoId: video.id,
-              })).join("")
-            : `<p class="card-copy">No related videos were found.</p>`}
-        </div>
-      </section>
+      </div><!-- /.player-shell -->
+
     </section>
   `;
 }

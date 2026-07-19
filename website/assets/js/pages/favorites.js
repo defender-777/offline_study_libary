@@ -10,13 +10,12 @@ export function render() {
     <section class="page-view" aria-labelledby="favorites-title">
       ${renderPageHeader({
         eyebrow: "Favorites",
-        title: "Your saved lectures will appear here.",
-        description: "Placeholder only — favorites behavior is deferred.",
+        title: "Favorites",
+        description: "Videos you have marked as favorites will appear here.",
       })}
       ${renderEmptyState({
         title: "No favorites yet",
         message: "Mark videos as favorites to keep them handy for later.",
-        action: "Feature placeholder — coming soon",
       })}
     </section>
   `;
