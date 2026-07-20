@@ -1,9 +1,8 @@
 import { APP_NAME, ROUTES } from "../constants.js";
-import { getState, setState } from "../state.js";
+import { getState, setState, AppState } from "../state.js";
 import { renderBreadcrumb } from "./breadcrumb.js";
 import { renderActionButton } from "./action-button.js";
-import { getRouteMeta } from "../router.js";
-import { navigate } from "../router.js";
+import { getRouteMeta, navigate, renderRoute } from "../router.js";
 import { toggleSidebar } from "./sidebar.js";
 
 let _headerSearchCleanup = null;
@@ -24,16 +23,46 @@ export function mountHeader(headerEl) {
 
   const handleInput = (event) => {
     const value = event.target.value;
-    setState({ searchQuery: value });
+
+    // ── Search input bug fix ─────────────────────────────────
+    // Root cause: calling setState({ searchQuery }) notifies all subscribers,
+    // which triggers renderApp() → header.innerHTML = renderHeader() → the
+    // entire header is replaced with a new DOM node.  The old <input> is
+    // destroyed mid-keystroke.  The new one is freshly rendered with the full
+    // value, and type="search" inputs auto-select their content when first
+    // focused — so the first character is always selected and the next
+    // keystroke replaces it instead of appending.
+    //
+    // Fix: write searchQuery directly into AppState (silent, no subscriber
+    // notification) and update only the main content area via renderRoute().
+    // The header is NEVER re-rendered during active typing.
+    // Full renderApp() continues to be triggered by all other state changes
+    // (navigation, library load, etc.) where the input is not focused.
+    AppState.searchQuery = value;
+
     const { currentPage } = getState();
     if (currentPage !== ROUTES.SEARCH) {
+      // Navigate to search — this triggers a hashchange → setState →
+      // renderApp() once.  At that point the input element is replaced but
+      // immediately receives focus again because it is the same logical
+      // element the user was interacting with.  After this single transition
+      // all subsequent keystrokes stay on the search page and never trigger
+      // a header re-render.
       navigate(ROUTES.SEARCH);
+    } else {
+      // Already on search page — update only the main content area.
+      // The header keeps its existing DOM node; no cursor disruption.
+      const main = document.getElementById("app-main");
+      if (main) {
+        renderRoute(main);
+      }
     }
   };
 
   const handleKeyDown = (event) => {
     if (event.key === "Escape") {
       input.value = "";
+      // Escape is an intentional user action; a full re-render is acceptable.
       setState({ searchQuery: "" });
     }
   };

@@ -12,14 +12,37 @@ function safeValue(value, fallback) {
   return value == null ? fallback : value;
 }
 
-function resolveThumbnailUrl(thumbnail) {
+function resolveThumbnailUrl(thumbnail, videoId) {
   if (!thumbnail) {
     return null;
   }
 
+  // The metadata generator (generate_metadata.py::build_thumbnail_path) writes
+  // the thumbnail field as:
+  //   thumbnails/<Subject>/<display_title>.jpg
+  //
+  // The thumbnail generator (generate_thumbnails.py::thumbnail_path) saves the
+  // actual file as:
+  //   thumbnails/<Subject>/<video_id_hash>.jpg
+  //
+  // The two use DIFFERENT naming conventions — the metadata path never exists on
+  // disk.  The only reliable approach is to reconstruct the correct path from the
+  // video ID hash and the subject directory that IS encoded in the metadata path.
+  //
+  // Strategy: keep the directory segments from the metadata field (they are
+  // correct) and replace only the filename with the video ID.
+  if (videoId) {
+    const parts = String(thumbnail).replace(/^\/+/, "").split("/");
+    // Replace the filename (last segment) with the ID-based filename.
+    parts[parts.length - 1] = `${videoId}.jpg`;
+    const encoded = parts
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+    return `../${encoded}`;
+  }
+
+  // Fallback: encode the path as-is (no video ID available).
   const normalized = String(thumbnail).replace(/^\/+/, "");
-  // Encode each path segment individually to handle spaces and special
-  // characters in filenames while preserving the directory separators.
   const encoded = normalized
     .split("/")
     .map((segment) => encodeURIComponent(segment))
@@ -167,7 +190,9 @@ export function getThumbnailUrl(video) {
     return null;
   }
 
-  return resolveThumbnailUrl(video.thumbnail);
+  // Pass the video ID so resolveThumbnailUrl can build the correct
+  // ID-based filename that the thumbnail generator actually wrote to disk.
+  return resolveThumbnailUrl(video.thumbnail, video.id);
 }
 
 /**
