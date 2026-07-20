@@ -251,8 +251,15 @@ export function mountSearchView(container) {
   searchContext = cleanup;
 
   if (input) {
-    input.focus();
-    input.select();
+    input.focus({ preventScroll: true });
+
+    const end = String(input.value || "").length;
+    try {
+      input.setSelectionRange(end, end);
+    } catch {
+      // Some browsers may restrict selection APIs on search inputs.
+      // Falling back to focus alone still preserves typing behavior.
+    }
   }
 }
 

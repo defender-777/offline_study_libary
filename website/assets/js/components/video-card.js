@@ -1,3 +1,5 @@
+import { getState } from "../state.js";
+
 /**
  * Renders a video card.
  *
@@ -25,6 +27,35 @@
  * }} props
  * @returns {string}
  */
+
+function escapeHtml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function isFavorited(videoId) {
+  if (videoId == null) {
+    return false;
+  }
+
+  const favorites = getState().favorites;
+  if (!Array.isArray(favorites) || !favorites.length) {
+    return false;
+  }
+
+  const targetId = String(videoId);
+  return favorites.some((favorite) => {
+    const favoriteId = favorite && typeof favorite === "object" && favorite.id != null
+      ? String(favorite.id)
+      : String(favorite);
+    return favoriteId === targetId;
+  });
+}
+
 export function renderVideoCard({
   title,
   titleHtml,
@@ -46,6 +77,8 @@ export function renderVideoCard({
     : "";
   const selectedClass = selected ? " video-card--selected" : "";
   const layoutClass   = layout === "list" ? " video-card--list" : "";
+  const favoriteId = videoId != null ? String(videoId) : "";
+  const favorited = isFavorited(videoId);
 
   const displayTitle       = titleHtml       || title       || "Untitled";
   const displaySubject     = subjectHtml     || subject     || "";
@@ -63,6 +96,24 @@ export function renderVideoCard({
         </svg>
       </div>
     </div>`;
+
+  const favoriteBtn = videoId != null
+    ? `
+    <button
+      type="button"
+      class="video-card__favorite${favorited ? " video-card__favorite--active" : ""}"
+      data-favorite-toggle
+      data-video-id="${escapeHtml(favoriteId)}"
+      aria-pressed="${favorited ? "true" : "false"}"
+      aria-label="${escapeHtml(favorited ? `Remove ${displayTitle} from favorites` : `Add ${displayTitle} to favorites`)}">
+      <svg class="video-card__favorite-icon video-card__favorite-icon--off" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 17.5l-5.5 3 1.5-6.5L3 9.5l6.8-1L12 3l2.2 5.5 6.8 1-5 4.5 1.5 6.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+      </svg>
+      <svg class="video-card__favorite-icon video-card__favorite-icon--on" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 17.5l-5.5 3 1.5-6.5L3 9.5l6.8-1L12 3l2.2 5.5 6.8 1-5 4.5 1.5 6.5z"/>
+      </svg>
+    </button>`
+    : "";
 
   // ── Thumbnail ──
   const thumbContent = thumbnail
@@ -118,9 +169,10 @@ export function renderVideoCard({
   tabindex="0"
   role="button"
   aria-label="Play ${(title || "video").replace(/"/g, "&quot;")}">
-  <div class="video-card__thumbnail" aria-hidden="true">
+  <div class="video-card__thumbnail">
     ${thumbContent}
     ${playBtn}
+    ${favoriteBtn}
     ${durationBadge}
     ${progressBar}
   </div>

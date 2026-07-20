@@ -16,6 +16,8 @@ export function renderSearchBox({ id = "", placeholder, value = "", description 
         value="${value}"
         placeholder="${placeholder}"
         autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
         ${disabled ? "disabled aria-disabled=\"true\"" : ""}
         aria-label="${ariaLabel}"
       />

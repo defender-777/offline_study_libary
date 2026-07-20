@@ -8,12 +8,58 @@ import { renderModalRegion } from "./components/modal.js";
 import { requiredElement } from "./utils/dom.js";
 import { on } from "./utils/events.js";
 import { loadLibrary } from "./api.js";
+import { loadFavorites, saveFavorites } from "./storage.js";
 
 const sidebar = requiredElement("#app-sidebar");
 const header = requiredElement("#app-header");
 const main = requiredElement("#app-main");
 const toast = requiredElement("#app-toast");
 const modal = requiredElement("#app-modal");
+
+let lastSavedFavoritesSignature = "[]";
+
+function normalizeFavoriteIds(favorites) {
+  if (!Array.isArray(favorites)) {
+    return [];
+  }
+
+  const seen = new Set();
+
+  return favorites
+    .map((favorite) => {
+      if (favorite && typeof favorite === "object" && favorite.id != null) {
+        return String(favorite.id);
+      }
+
+      return favorite == null ? "" : String(favorite);
+    })
+    .filter((favoriteId) => {
+      if (!favoriteId) {
+        return false;
+      }
+
+      if (seen.has(favoriteId)) {
+        return false;
+      }
+
+      seen.add(favoriteId);
+      return true;
+    });
+}
+
+function toggleFavorite(videoId) {
+  if (!videoId) {
+    return;
+  }
+
+  const currentFavorites = normalizeFavoriteIds(getState().favorites);
+  const favoriteId = String(videoId);
+  const nextFavorites = currentFavorites.includes(favoriteId)
+    ? currentFavorites.filter((id) => id !== favoriteId)
+    : [...currentFavorites, favoriteId];
+
+  setState({ favorites: nextFavorites });
+}
 
 /**
  * Renders application chrome and current route placeholder.
@@ -35,6 +81,14 @@ function setDocumentTitle() {
 }
 
 function handleMainClick(event) {
+  const favoriteButton = event.target.closest("[data-favorite-toggle]");
+  if (favoriteButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleFavorite(favoriteButton.dataset.videoId);
+    return;
+  }
+
   const card = event.target.closest(".video-card");
   if (!card || !card.dataset.videoId) {
     return;
@@ -51,10 +105,13 @@ async function init() {
   // Apply persisted sidebar state before first render
   initSidebar();
 
+  const persistedFavorites = normalizeFavoriteIds(loadFavorites());
+  lastSavedFavoritesSignature = JSON.stringify(persistedFavorites);
+
   setState({
     loading: true,
     error: null,
-    favorites: [],
+    favorites: persistedFavorites,
     history: [],
     settings: {},
   });
@@ -74,6 +131,13 @@ async function init() {
   updateRouteState();
 
   subscribe(() => {
+    const favoriteIds = normalizeFavoriteIds(getState().favorites);
+    const signature = JSON.stringify(favoriteIds);
+    if (signature !== lastSavedFavoritesSignature) {
+      saveFavorites(favoriteIds);
+      lastSavedFavoritesSignature = signature;
+    }
+
     renderApp();
   });
 
