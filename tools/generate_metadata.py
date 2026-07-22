@@ -43,6 +43,7 @@ except ModuleNotFoundError:
 
 GENERATOR_VERSION = "1.0"
 VIDEOS_JSON_PATH = PROJECT_ROOT / "website" / "videos.json"
+VIDEOS_JS_PATH = PROJECT_ROOT / "website" / "videos.js"
 METADATA_LOG_PATH = LOG_DIR / "metadata_generator.log"
 SUPPORTED_VIDEO_EXTENSIONS = {".mp4", ".mkv", ".webm", ".avi", ".mov"}
 
@@ -444,6 +445,21 @@ def write_videos_json(data: dict[str, Any]) -> None:
         raise
 
 
+def write_videos_js(data: dict[str, Any]) -> None:
+    """Write videos.js so the website can load metadata without fetch()."""
+
+    payload = "window.VIDEO_DATA = " + json.dumps(data, ensure_ascii=False, indent=4, sort_keys=False) + ";\n"
+
+    try:
+        VIDEOS_JS_PATH.write_text(payload, encoding="utf-8")
+    except PermissionError as exc:
+        logging.error("Permission denied writing videos.js: %s", exc)
+        raise
+    except OSError as exc:
+        logging.error("Unable to write videos.js: %s", exc)
+        raise
+
+
 def print_summary(data: dict[str, Any], generation_time: float) -> None:
     """Display a concise generation summary."""
 
@@ -455,6 +471,8 @@ def print_summary(data: dict[str, Any], generation_time: float) -> None:
     table.add_row("Generation Time", f"{generation_time:.2f}s")
     table.add_row("videos.json location", project_relative_path(VIDEOS_JSON_PATH))
     table.add_row("videos.json size", format_bytes(VIDEOS_JSON_PATH.stat().st_size))
+    table.add_row("videos.js location", project_relative_path(VIDEOS_JS_PATH))
+    table.add_row("videos.js size", format_bytes(VIDEOS_JS_PATH.stat().st_size))
     console.print(table)
 
 
@@ -468,6 +486,7 @@ def main() -> int:
     try:
         data, generation_time = generate_metadata()
         write_videos_json(data)
+        write_videos_js(data)
         print_summary(data, generation_time)
         logging.info("Videos indexed: %s", data["total_videos"])
         logging.info("Subjects indexed: %s", data["total_subjects"])

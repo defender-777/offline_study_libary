@@ -9,7 +9,9 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from functools import lru_cache
 from typing import Any, Callable
+import unicodedata
 
 from colorama import Fore, Style, init as colorama_init
 from rich.console import Console
@@ -92,6 +94,120 @@ def build_format_selector(quality: int) -> str:
     )
 
 
+@lru_cache(maxsize=1)
+def get_cookie_file() -> Path | None:
+    """Return the project-root cookies.txt file when it exists."""
+
+    cookie_file = Path(__file__).resolve().parents[1] / "cookies.txt"
+    if cookie_file.is_file():
+        logging.info("Using cookies.txt authentication.")
+        return cookie_file
+
+    logging.info("No cookies.txt found. Downloading without authentication.")
+    return None
+
+
+def print_authentication_message() -> None:
+    """Show guidance when YouTube authentication is required."""
+
+    if getattr(print_authentication_message, "_emitted", False):
+        return
+    setattr(print_authentication_message, "_emitted", True)
+
+    message = (
+        "----------------------------------------------------\n"
+        "Some videos require YouTube authentication.\n\n"
+        "To download these videos:\n\n"
+        "1. Export YouTube cookies as cookies.txt\n"
+        "2. Place cookies.txt in the project root\n"
+        "3. Run the downloader again\n\n"
+        "Already downloaded videos will be skipped automatically.\n"
+        "----------------------------------------------------"
+    )
+    console.print(f"{Fore.YELLOW}{message}{Style.RESET_ALL}")
+    logging.warning("YouTube authentication required for one or more videos.")
+
+
+def normalize_authentication_text(text: str) -> str:
+    """Normalize yt-dlp auth text for resilient keyword matching."""
+
+    normalized = unicodedata.normalize("NFKC", text)
+    translation_table = str.maketrans(
+        {
+            "’": "'",
+            "‘": "'",
+            "ʼ": "'",
+            "′": "'",
+            "`": "'",
+            "´": "'",
+            "“": '"',
+            "”": '"',
+            "„": '"',
+            "‟": '"',
+            "–": "-",
+            "—": "-",
+            "−": "-",
+            "‐": "-",
+            "‑": "-",
+        }
+    )
+    return normalized.translate(translation_table).lower()
+
+
+def remote_components_error(exc: BaseException) -> bool:
+    """Return True when yt-dlp cannot fetch or use remote challenge components."""
+
+    normalized = normalize_authentication_text(str(exc))
+    return any(
+        keyword in normalized
+        for keyword in (
+            "remote component",
+            "remote components",
+            "challenge solver",
+            "ejs:github",
+            "failed to download",
+            "unable to download",
+            "could not download",
+        )
+    )
+
+
+def authentication_error(exc: BaseException) -> bool:
+    """Return True when yt-dlp reports an authentication-related failure."""
+
+    normalized = normalize_authentication_text(str(exc))
+    return any(
+        keyword in normalized
+        for keyword in (
+            "sign in to confirm",
+            "requires authentication",
+            "authentication required",
+            "login required",
+            "--cookies",
+            "cookies-from-browser",
+            "youtube cookies",
+        )
+    )
+
+
+def authentication_message(message: str) -> bool:
+    """Return True when a yt-dlp log message indicates authentication is required."""
+
+    normalized = normalize_authentication_text(message)
+    return any(
+        keyword in normalized
+        for keyword in (
+            "sign in to confirm",
+            "requires authentication",
+            "authentication required",
+            "login required",
+            "--cookies",
+            "cookies-from-browser",
+            "youtube cookies",
+        )
+    )
+
+
 def read_archive_ids(archive_file: Path) -> set[str]:
     """Read yt-dlp archive IDs from a subject archive file."""
 
@@ -109,7 +225,35 @@ def read_archive_ids(archive_file: Path) -> set[str]:
     return archive_ids
 
 
-def extract_playlist_entries(subject: Subject) -> list[dict[str, Any]]:
+def extract_playlist_entries(
+    subject: Subject,
+    cookie_file: Path | None = None,
+) -> list[dict[str, Any]]:
+    """Fetch playlist metadata without downloading videos."""
+
+    try:
+        return _extract_playlist_entries(subject, cookie_file, use_remote_components=True)
+    except Exception as exc:
+        if remote_components_error(exc):
+            logging.warning("Remote challenge solver unavailable during metadata extraction: %s", exc)
+            try:
+                return _extract_playlist_entries(subject, cookie_file, use_remote_components=False)
+            except Exception as retry_exc:
+                if authentication_error(retry_exc):
+                    print_authentication_message()
+                    return []
+                raise
+        if authentication_error(exc):
+            print_authentication_message()
+            return []
+        raise
+
+
+def _extract_playlist_entries(
+    subject: Subject,
+    cookie_file: Path | None = None,
+    use_remote_components: bool = True,
+) -> list[dict[str, Any]]:
     """Fetch playlist metadata without downloading videos."""
 
     options = {
@@ -118,6 +262,11 @@ def extract_playlist_entries(subject: Subject) -> list[dict[str, Any]]:
         "quiet": True,
         "no_warnings": True,
     }
+    if cookie_file is not None:
+        options["cookiefile"] = str(cookie_file)
+    if use_remote_components:
+        options["remote_components"] = ["ejs:github"]
+
     with YoutubeDL(options) as ydl:
         info = ydl.extract_info(subject.playlist, download=False)
 
@@ -125,11 +274,15 @@ def extract_playlist_entries(subject: Subject) -> list[dict[str, Any]]:
     return [entry for entry in entries if entry]
 
 
-def get_playlist_stats(subject: Subject, subject_dir: Path) -> PlaylistStats | None:
+def get_playlist_stats(
+    subject: Subject,
+    subject_dir: Path,
+    cookie_file: Path | None = None,
+) -> PlaylistStats | None:
     """Display metadata-only playlist statistics before a download starts."""
 
     try:
-        entries = extract_playlist_entries(subject)
+        entries = extract_playlist_entries(subject, cookie_file)
     except (DownloadError, ExtractorError, OSError) as exc:
         console.print(f"{Fore.RED}Could not read playlist metadata: {friendly_error(exc)}{Style.RESET_ALL}")
         logging.error("Metadata fetch failed for %s: %s", subject.name, exc)
@@ -248,12 +401,19 @@ class YtdlpLogger:
         self._handle_skip_message(message)
 
     def warning(self, message: str) -> None:
+        if authentication_message(message):
+            print_authentication_message()
+            return
         logging.warning("%s | %s", self.subject, message)
         if self._handle_skip_message(message):
             return
         console.print(f"{Fore.YELLOW}Warning [{self.subject}]: {message}{Style.RESET_ALL}")
 
     def error(self, message: str) -> None:
+        if authentication_message(message):
+            print_authentication_message()
+            logging.info("%s | Authentication required: %s", self.subject, normalize_authentication_text(message))
+            return
         logging.error("%s | %s", self.subject, message)
         self.summary.failed += 1
         console.print(f"{Fore.RED}Error [{self.subject}]: {message}{Style.RESET_ALL}")
@@ -273,11 +433,13 @@ def ytdlp_options(
     subject: Subject,
     subject_dir: Path,
     summary: DownloadSummary,
+    cookie_file: Path | None = None,
+    use_remote_components: bool = True,
 ) -> dict[str, Any]:
     """Build yt-dlp options for one subject playlist."""
 
     archive_file = subject_dir / ".downloaded.txt"
-    return {
+    options = {
         "format": build_format_selector(config.video_quality),
         "merge_output_format": config.video_format,
         "outtmpl": str(subject_dir / "%(title)s.%(ext)s"),
@@ -299,6 +461,13 @@ def ytdlp_options(
         "logger": YtdlpLogger(subject.name, summary),
     }
 
+    if cookie_file is not None:
+        options["cookiefile"] = str(cookie_file)
+    if use_remote_components:
+        options["remote_components"] = ["ejs:github"]
+
+    return options
+
 
 def ensure_internet_or_return() -> bool:
     """Check internet availability and keep the menu alive when offline."""
@@ -318,6 +487,8 @@ def download_subject(config: DownloaderConfig, subject: Subject) -> DownloadSumm
 
     summary = DownloadSummary(subject=subject.name)
     start_time = time.monotonic()
+    cookie_file = get_cookie_file()
+    use_remote_components = True
 
     if not subject.playlist:
         console.print(f"{Fore.YELLOW}Skipping {subject.name}: playlist is empty.{Style.RESET_ALL}")
@@ -341,7 +512,7 @@ def download_subject(config: DownloaderConfig, subject: Subject) -> DownloadSumm
         summary.failed += 1
         return summary
 
-    stats = get_playlist_stats(subject, subject_dir)
+    stats = get_playlist_stats(subject, subject_dir, cookie_file)
     if stats is None:
         summary.failed += 1
         return summary
@@ -352,7 +523,16 @@ def download_subject(config: DownloaderConfig, subject: Subject) -> DownloadSumm
 
     while True:
         try:
-            with YoutubeDL(ytdlp_options(config, subject, subject_dir, summary)) as ydl:
+            with YoutubeDL(
+                ytdlp_options(
+                    config,
+                    subject,
+                    subject_dir,
+                    summary,
+                    cookie_file,
+                    use_remote_components=use_remote_components,
+                )
+            ) as ydl:
                 ydl.download([subject.playlist])
             break
         except KeyboardInterrupt as exc:
@@ -360,23 +540,35 @@ def download_subject(config: DownloaderConfig, subject: Subject) -> DownloadSumm
                 raise UserInterruptedDownload from exc
             console.print(f"{Fore.CYAN}Continuing download...{Style.RESET_ALL}")
             logging.info("User chose to continue after Ctrl+C for %s", subject.name)
-        except (DownloadError, ExtractorError) as exc:
-            console.print(f"{Fore.RED}Could not download {subject.name}: {friendly_error(exc)}{Style.RESET_ALL}")
-            logging.error("Download failed for %s: %s", subject.name, exc)
-            summary.failed += 1
-            break
-        except PermissionError as exc:
-            console.print(f"{Fore.RED}Permission error while downloading {subject.name}: {exc}{Style.RESET_ALL}")
-            logging.error("Permission error for %s: %s", subject.name, exc)
-            summary.failed += 1
-            break
-        except OSError as exc:
-            console.print(
-                f"{Fore.RED}System error while downloading {subject.name}: {friendly_error(exc)}{Style.RESET_ALL}"
-            )
-            logging.error("System error for %s: %s", subject.name, exc)
-            summary.failed += 1
-            break
+        except Exception as exc:
+            if use_remote_components and remote_components_error(exc):
+                logging.warning("Remote challenge solver unavailable during download: %s", exc)
+                use_remote_components = False
+                continue
+            if authentication_error(exc):
+                print_authentication_message()
+                break
+            if isinstance(exc, PermissionError):
+                console.print(f"{Fore.RED}Permission error while downloading {subject.name}: {exc}{Style.RESET_ALL}")
+                logging.error("Permission error for %s: %s", subject.name, exc)
+                summary.failed += 1
+                break
+            if isinstance(exc, OSError):
+                console.print(
+                    f"{Fore.RED}System error while downloading {subject.name}: {friendly_error(exc)}{Style.RESET_ALL}"
+                )
+                logging.error("System error for %s: %s", subject.name, exc)
+                summary.failed += 1
+                break
+            if isinstance(exc, (DownloadError, ExtractorError)):
+                if authentication_message(str(exc)):
+                    print_authentication_message()
+                    break
+                console.print(f"{Fore.RED}Could not download {subject.name}: {friendly_error(exc)}{Style.RESET_ALL}")
+                logging.error("Download failed for %s: %s", subject.name, exc)
+                summary.failed += 1
+                break
+            raise
 
     summary.duration_seconds = time.monotonic() - start_time
     logging.info("Finished playlist: %s", subject.name)

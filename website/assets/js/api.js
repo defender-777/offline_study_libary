@@ -1,4 +1,3 @@
-const LIBRARY_PATH = "../videos.json";
 let libraryCache = null;
 
 function assertArray(value, label) {
@@ -52,7 +51,7 @@ function resolveThumbnailUrl(thumbnail, videoId) {
 
 function normalizeLibrary(rawData) {
   if (!rawData || typeof rawData !== "object") {
-    throw new Error("videos.json did not return an object.");
+    throw new Error("video metadata did not return an object.");
   }
 
   const subjects = assertArray(rawData.subjects, "subjects");
@@ -74,26 +73,10 @@ export async function loadLibrary() {
     return libraryCache;
   }
 
-  let response;
+  const raw = globalThis.window?.VIDEO_DATA;
 
-  try {
-    response = await fetch(LIBRARY_PATH, {
-      cache: "no-store",
-    });
-  } catch (error) {
-    throw new Error("Unable to fetch videos.json. Please ensure the library manifest exists.");
-  }
-
-  if (!response.ok) {
-    throw new Error(`Failed to load videos.json: ${response.status} ${response.statusText}`);
-  }
-
-  let raw;
-
-  try {
-    raw = await response.json();
-  } catch (error) {
-    throw new Error("videos.json contains invalid JSON.");
+  if (!raw) {
+    throw new Error("videos.js was not loaded. Regenerate the metadata files and open website/index.html again.");
   }
 
   const library = normalizeLibrary(raw);

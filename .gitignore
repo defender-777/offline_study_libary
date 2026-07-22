@@ -35,3 +35,13 @@ website/thumbnails/
 
 # Generated metadata (optional)
 website/videos.json
+
+/downloads
+archive.txt
+cookies.txt
+yt-dlp
+
+/node_modules
+/thumbnails
+
+

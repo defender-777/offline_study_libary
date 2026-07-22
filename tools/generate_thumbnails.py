@@ -40,7 +40,7 @@ except ModuleNotFoundError:
     )
 
 
-VIDEOS_JSON_PATH = PROJECT_ROOT / "videos.json"
+VIDEOS_JSON_PATH = PROJECT_ROOT / "website" / "videos.json"
 DOWNLOADS_DIR = PROJECT_ROOT / "downloads"
 THUMBNAILS_DIR = PROJECT_ROOT / "thumbnails"
 THUMBNAIL_LOG_PATH = LOG_DIR / "thumbnail_generator.log"
